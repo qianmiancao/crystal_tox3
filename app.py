@@ -64,7 +64,12 @@ def load_model():
     finetuned_path = os.path.join(current_dir, 'finetuned_toxicity.pt')
     if os.path.exists(finetuned_path):
         state_dict = torch.load(finetuned_path, map_location=torch.device('cpu'))
-        model.load_state_dict(state_dict)
+        
+        # 打印键名用于调试（首次运行时查看）
+        # st.write("权重文件中的键名:", list(state_dict.keys())[:10])
+        
+        # 使用 strict=False 忽略不匹配的键
+        model.load_state_dict(state_dict, strict=False)
     
     model.eval()
     return model

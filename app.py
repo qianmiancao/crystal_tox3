@@ -7,6 +7,7 @@ import pandas as pd
 from rdkit import Chem
 from rdkit.Chem import Draw
 import importlib.util
+from collections import OrderedDict
 
 # ========== 动态加载模块（绕过嵌套路径和连字符限制）==========
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -65,11 +66,33 @@ def load_model():
     if os.path.exists(finetuned_path):
         state_dict = torch.load(finetuned_path, map_location=torch.device('cpu'))
         
-        # 打印键名用于调试（首次运行时查看）
-        # st.write("权重文件中的键名:", list(state_dict.keys())[:10])
+        # 调试：显示权重键名（首次运行查看）
+        # st.write("权重文件中的前10个键名:", list(state_dict.keys())[:10])
+        # st.write("模型中的前10个键名:", list(model.state_dict().keys())[:10])
         
-        # 使用 strict=False 忽略不匹配的键
-        model.load_state_dict(state_dict, strict=False)
+        # 检查是否需要转换键名（适配 gen_states 提取的格式）
+        # 如果权重键名包含 'mpnn.' 前缀，需要去掉
+        new_state_dict = OrderedDict()
+        for key, value in state_dict.items():
+            if key.startswith('mpnn.'):
+                new_key = key[5:]  # 去掉 'mpnn.' 前缀
+                new_state_dict[new_key] = value
+            else:
+                new_state_dict[key] = value
+        
+        # 尝试加载转换后的权重
+        try:
+            model.load_state_dict(new_state_dict, strict=False)
+        except RuntimeError as e:
+            # 如果还是失败，尝试只加载 mpnn 部分的权重
+            mpnn_state_dict = OrderedDict()
+            for key, value in state_dict.items():
+                if 'mpnn.' in key:
+                    new_key = key.split('mpnn.')[1]
+                    mpnn_state_dict[new_key] = value
+            
+            model.mpnn.load_state_dict(mpnn_state_dict, strict=False)
+            # toxicity_predictor 和 compress_mol 层保持随机初始化
     
     model.eval()
     return model

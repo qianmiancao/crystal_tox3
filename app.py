@@ -2,32 +2,93 @@ import streamlit as st
 import os
 import sys
 import torch
+import numpy as np
 import pandas as pd
 from rdkit import Chem
 from rdkit.Chem import Draw
 import importlib.util
 
-# ========== 动态加载 MPNN 模块（绕过嵌套路径和连字符限制）==========
+# ========== 动态加载模块（绕过嵌套路径和连字符限制）==========
 current_dir = os.path.dirname(os.path.abspath(__file__))
-mpnn_file = os.path.join(current_dir, 'Modular_Latent_Space-master', 'Modular_Latent_Space-master', 'MPNN', 'mpnn.py')
 
+# 1. 加载 Big_MPNN（底层模型）
+mpnn_file = os.path.join(current_dir, 'Modular_Latent_Space-master', 'Modular_Latent_Space-master', 'MPNN', 'mpnn.py')
 spec = importlib.util.spec_from_file_location("mpnn", mpnn_file)
 mpnn_module = importlib.util.module_from_spec(spec)
 sys.modules["mpnn"] = mpnn_module
 spec.loader.exec_module(mpnn_module)
 
-Toxicity_MPNN = mpnn_module.Toxicity_MPNN
+# 2. 加载 Toxicity_MPNN（毒性预测模型）
+toxicity_file = os.path.join(current_dir, 'Modular_Latent_Space-master', 'Modular_Latent_Space-master', 'toxicity', 'mpnn_toxicity.py')
+spec2 = importlib.util.spec_from_file_location("mpnn_toxicity", toxicity_file)
+toxicity_module = importlib.util.module_from_spec(spec2)
+sys.modules["mpnn_toxicity"] = toxicity_module
+spec2.loader.exec_module(toxicity_module)
+
+# 3. 加载 pytorch_toxicity（预处理函数）
+pytorch_file = os.path.join(current_dir, 'Modular_Latent_Space-master', 'Modular_Latent_Space-master', 'toxicity', 'pytorch_toxicity.py')
+spec3 = importlib.util.spec_from_file_location("pytorch_toxicity", pytorch_file)
+pytorch_module = importlib.util.module_from_spec(spec3)
+sys.modules["pytorch_toxicity"] = pytorch_module
+spec3.loader.exec_module(pytorch_module)
+
+Toxicity_MPNN = toxicity_module.Toxicity_MPNN
+Toxic_NonToxic_Molecules = pytorch_module.Toxic_NonToxic_Molecules
+canonicalize_smiles = pytorch_module.canonicalize_smiles
 # ==============================================================
+
+# 原子列表（来自 predict_toxicity.py）
+ATOM_LIST = [6, 8, 7, 9, 17, 16, 15, 5, 29, 35, 14, 53, 30, 26, 27, 28, 48, 44, 42, 25, 47, 34, 46, 78, 50, 74,
+             11, 3, 19, 23, 13, 79, 45, 82, 75, 77, 76, 51, 24, 33, 22, 32, 80, 92, 31, 63, 52, 12, 40, 65, 83,
+             49, 64, 20, 66, 57, 60, 62, 39, 56, 68, 59, 58, 70, 55, 38, 41, 37, 73, 67, 21, 81, 71, 72, 90, 69,
+             43, 4, 93, 94, 54, 95, 2, 10, 18, 98, 36, 96, 97, 91]
+
+# 预训练模型路径
+PRETRAINED_PATH = os.path.join(current_dir, 'Modular_Latent_Space-master', 'Modular_Latent_Space-master', 'MPNN', 'big_mpnn_no_delocalised_no_unknown_model')
+
+# 最大分子大小（需要根据实际数据调整，先用一个合理值）
+LONGEST_MOLECULE = 100
 
 # --- 缓存模型加载 ---
 @st.cache_resource
 def load_model():
-    model = Toxicity_MPNN()
-    # 路径指向您上传到 GitHub 的权重文件
-    state_dict = torch.load("finetuned_toxicity.pt", map_location=torch.device('cpu'))
-    model.load_state_dict(state_dict)
+    model = Toxicity_MPNN(
+        message_size=128,
+        message_passes=3,
+        atom_list=ATOM_LIST,
+        pretrained_mpnn_path=PRETRAINED_PATH,
+        longest_molecule=LONGEST_MOLECULE
+    )
+    
+    # 加载微调后的权重
+    finetuned_path = os.path.join(current_dir, 'finetuned_toxicity.pt')
+    if os.path.exists(finetuned_path):
+        state_dict = torch.load(finetuned_path, map_location=torch.device('cpu'))
+        model.load_state_dict(state_dict)
+    
     model.eval()
     return model
+
+# --- SMILES 预处理函数 ---
+def preprocess_smiles(smiles, longest_molecule=LONGEST_MOLECULE):
+    """将 SMILES 字符串转换为模型输入格式"""
+    # 创建临时 DataFrame
+    df = pd.DataFrame({
+        'canonical_smiles': [canonicalize_smiles(smiles)],
+        'Y': [0.0]  # 占位标签
+    })
+    
+    # 创建数据集实例
+    dataset = Toxic_NonToxic_Molecules(df, longest_molecule)
+    
+    # 获取第一个样本
+    (mol_features, mol_matrices), _ = dataset[0]
+    
+    # 添加 batch 维度
+    mol_features = mol_features.unsqueeze(0)
+    mol_matrices = mol_matrices.unsqueeze(0)
+    
+    return mol_features, mol_matrices
 
 # --- 页面设计 ---
 st.set_page_config(page_title="Crystal-Tox 预测", page_icon="💊")
@@ -51,14 +112,13 @@ if st.button("开始预测"):
             model = load_model()
             with st.spinner('计算中...'):
                 try:
-                    # 注意：这里需要调用您在 predict_toxicity.py 中的预处理逻辑
-                    # 比如将 SMILES 转换为 Graph 数据对象
-                    # 示例伪代码：
-                    # processed_data = my_preprocess_func(smiles)
-                    # output = model(processed_data)
+                    # 预处理 SMILES
+                    mol_features, mol_matrices = preprocess_smiles(smiles)
                     
-                    # 占位符预测值
-                    prediction = 4.25 
+                    # 模型推理
+                    with torch.no_grad():
+                        prediction = model(mol_matrices, mol_features)
+                        prediction = prediction.item()
                     
                     st.metric(label="预测 log LD50 (mg/kg)", value=f"{prediction:.3f}")
                     
@@ -69,5 +129,6 @@ if st.button("开始预测"):
                         
                 except Exception as e:
                     st.error(f"模型推理失败: {e}")
+                    st.error(f"错误详情: {str(e)}")
         else:
             st.error("无效的 SMILES 字符串")

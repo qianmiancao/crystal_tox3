@@ -149,12 +149,7 @@ if st.button("开始预测"):
                         prediction = prediction.item()
                     
                     st.metric(label="预测 log LD50 (mg/kg)", value=f"{prediction:.3f}")
-                    
-                    if prediction < 3.0:
-                        st.error("结论：预测为高毒性")
-                    else:
-                        st.success("结论：预测为低毒性/安全")
-                        
+                                                              
                 except Exception as e:
                     st.error(f"模型推理失败: {e}")
                     st.error(f"错误详情: {str(e)}")

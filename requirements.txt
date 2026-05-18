@@ -3,6 +3,6 @@ rdkit
 torch
 pandas
 numpy
-networkx==1.11
+networkx>=2.5.1
 scikit-learn
 Pillow

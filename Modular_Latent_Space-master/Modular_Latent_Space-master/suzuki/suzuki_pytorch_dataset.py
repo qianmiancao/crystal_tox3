@@ -90,11 +90,11 @@ class Suzuki_USPTO_Rxns(Dataset):
             if feats[i].GetFamily() == 'Donor':
                 node_list = feats[i].GetAtomIds()
                 for i in node_list:
-                    g.node[i]['donor'] = 1
+                    g.nodes[i]['donor'] = 1
             elif feats[i].GetFamily() == 'Acceptor':
                 node_list = feats[i].GetAtomIds()
                 for i in node_list:
-                    g.node[i]['acceptor'] = 1
+                    g.nodes[i]['acceptor'] = 1
 
         g_single = g.copy()
         g_double = g.copy()
@@ -220,11 +220,11 @@ class Suzuki_USPTO_Rxns(Dataset):
             # Feature vector
             features = self.make_atom_features(g_single, longest_molecule)
 
-            g = np.concatenate((nx.to_numpy_matrix(g_single), nx.to_numpy_matrix(g_double), nx.to_numpy_matrix(g_triple),
-                                nx.to_numpy_matrix(g_quadruple), nx.to_numpy_matrix(g_aromatic),
-                                nx.to_numpy_matrix(g_dative)), axis=0)
+            g = np.concatenate((nx.to_numpy_array(g_single), nx.to_numpy_array(g_double), nx.to_numpy_array(g_triple),
+                                nx.to_numpy_array(g_quadruple), nx.to_numpy_array(g_aromatic),
+                                nx.to_numpy_array(g_dative)), axis=0)
 
-            g = np.array(g).reshape([-1, nx.to_numpy_matrix(g_single).shape[0], nx.to_numpy_matrix(g_single).shape[1]])
+            g = np.array(g).reshape([-1, nx.to_numpy_array(g_single).shape[0], nx.to_numpy_array(g_single).shape[1]])
 
             # Adding the graph padding.
             g_pad = np.zeros([g.shape[0], longest_molecule, longest_molecule])

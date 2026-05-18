@@ -1,6 +1,6 @@
 streamlit
 rdkit
-torch
+torch>=2.0.0
 pandas
 numpy
 networkx>=2.5.1

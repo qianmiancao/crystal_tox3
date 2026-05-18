@@ -48,7 +48,7 @@ ATOM_LIST = [6, 8, 7, 9, 17, 16, 15, 5, 29, 35, 14, 53, 30, 26, 27, 28, 48, 44, 
 PRETRAINED_PATH = os.path.join(current_dir, 'Modular_Latent_Space-master', 'Modular_Latent_Space-master', 'MPNN', 'big_mpnn_no_delocalised_no_unknown_model')
 
 # 最大分子大小（需要根据实际数据调整，先用一个合理值）
-LONGEST_MOLECULE = 100
+LONGEST_MOLECULE = 91
 
 # --- 缓存模型加载 ---
 @st.cache_resource

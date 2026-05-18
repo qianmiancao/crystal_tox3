@@ -5,35 +5,26 @@ import torch
 import pandas as pd
 from rdkit import Chem
 from rdkit.Chem import Draw
+import importlib.util
 
-# 1. 确保能引用到模型代码
-# 假设您的项目代码在 Modular_Latent_Space 文件夹下
-PROJECT_ROOT = os.path.abspath("Modular_Latent_Space")
-sys.path.append(PROJECT_ROOT)
-sys.path.append(os.path.join(PROJECT_ROOT, "MPNN"))
-
-# 导入您的模型类 (根据您的重现代码调整)
-import sys
-import os
-
-# 获取当前文件所在目录
+# ========== 动态加载 MPNN 模块（绕过嵌套路径和连字符限制）==========
 current_dir = os.path.dirname(os.path.abspath(__file__))
+mpnn_file = os.path.join(current_dir, 'Modular_Latent_Space-master', 'Modular_Latent_Space-master', 'MPNN', 'mpnn.py')
 
-# 添加 MPNN 模块所在路径到 Python 搜索路径
-# 根据你的实际路径：Modular_Latent_Space-master/Modular_Latent_Space-master/MPNN
-mpnn_parent_path = os.path.join(current_dir, 'Modular_Latent_Space-master', 'Modular_Latent_Space-master')
-if mpnn_parent_path not in sys.path:
-    sys.path.insert(0, mpnn_parent_path)
+spec = importlib.util.spec_from_file_location("mpnn", mpnn_file)
+mpnn_module = importlib.util.module_from_spec(spec)
+sys.modules["mpnn"] = mpnn_module
+spec.loader.exec_module(mpnn_module)
 
-# 现在可以正常导入
-from MPNN.mpnn import Toxicity_MPNN
+Toxicity_MPNN = mpnn_module.Toxicity_MPNN
+# ==============================================================
 
 # --- 缓存模型加载 ---
 @st.cache_resource
 def load_model():
     model = Toxicity_MPNN()
     # 路径指向您上传到 GitHub 的权重文件
-    state_dict = torch.load("model_weights.pt", map_location=torch.device('cpu'))
+    state_dict = torch.load("finetuned_toxicity.pt", map_location=torch.device('cpu'))
     model.load_state_dict(state_dict)
     model.eval()
     return model
@@ -46,7 +37,7 @@ st.markdown("""
 本工具基于 **Emma King-Smith (2024)** 的论文重现，利用基础模型的潜空间进行毒性预测。
 """)
 
-smiles = st.text_input("输入分子 SMILES:", "CN1C=NC2=C1C(=O)N(C(=O)N2C)C") # 默认咖啡因
+smiles = st.text_input("输入分子 SMILES:", "CN1C=NC2=C1C(=O)N(C(=O)N2C)C")  # 默认咖啡因
 
 if st.button("开始预测"):
     if smiles:

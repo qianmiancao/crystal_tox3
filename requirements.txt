@@ -1,0 +1,8 @@
+streamlit
+rdkit
+torch
+pandas
+numpy
+networkx==1.11
+scikit-learn
+Pillow

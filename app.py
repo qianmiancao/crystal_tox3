@@ -13,7 +13,20 @@ sys.path.append(PROJECT_ROOT)
 sys.path.append(os.path.join(PROJECT_ROOT, "MPNN"))
 
 # 导入您的模型类 (根据您的重现代码调整)
-from MPNN.mpnn import Toxicity_MPNN 
+import sys
+import os
+
+# 获取当前文件所在目录
+current_dir = os.path.dirname(os.path.abspath(__file__))
+
+# 添加 MPNN 模块所在路径到 Python 搜索路径
+# 根据你的实际路径：Modular_Latent_Space-master/Modular_Latent_Space-master/MPNN
+mpnn_parent_path = os.path.join(current_dir, 'Modular_Latent_Space-master', 'Modular_Latent_Space-master')
+if mpnn_parent_path not in sys.path:
+    sys.path.insert(0, mpnn_parent_path)
+
+# 现在可以正常导入
+from MPNN.mpnn import Toxicity_MPNN
 
 # --- 缓存模型加载 ---
 @st.cache_resource
